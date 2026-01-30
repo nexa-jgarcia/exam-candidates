@@ -1,0 +1,170 @@
+import { useState } from 'react';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { sampleQuestions } from '../data/sampleQuestions';
+import './Results.css';
+import React from 'react';
+
+interface ExamResult {
+  date: string;
+  score: number;
+  totalQuestions: number;
+  answers: { questionId: number; userAnswer: number; correct: boolean }[];
+  timeSpent: number;
+}
+
+export function Results() {
+  const [examResults] = useLocalStorage<ExamResult[]>('examResults', []);
+  const [selectedResultIndex, setSelectedResultIndex] = useState<number | null>(
+    examResults.length > 0 ? examResults.length - 1 : null
+  );
+
+  if (examResults.length === 0) {
+    return (
+      <div className="results-container">
+        <div className="no-results">
+          <h2>No exam results yet</h2>
+          <p>Take an exam to see your results here!</p>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedResult = selectedResultIndex !== null ? examResults[selectedResultIndex] : null;
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
+
+  const getScorePercentage = (score: number, total: number) => {
+    return Math.round((score / total) * 100);
+  };
+
+  const getScoreColor = (percentage: number) => {
+    if (percentage >= 80) return '#48bb78';
+    if (percentage >= 60) return '#ed8936';
+    return '#e53e3e';
+  };
+
+  return (
+    <div className="results-container">
+      <h2>Exam Results</h2>
+
+      <div className="results-layout">
+        <div className="results-sidebar">
+          <h3>All Attempts</h3>
+          <div className="results-list">
+            {examResults.map((result, index) => {
+              const percentage = getScorePercentage(result.score, result.totalQuestions);
+              return (
+                <button
+                  key={index}
+                  className={`result-item ${selectedResultIndex === index ? 'active' : ''}`}
+                  onClick={() => setSelectedResultIndex(index)}
+                >
+                  <div className="result-item-date">{formatDate(result.date)}</div>
+                  <div className="result-item-score" style={{ color: getScoreColor(percentage) }}>
+                    {percentage}% ({result.score}/{result.totalQuestions})
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {selectedResult && (
+          <div className="results-detail">
+            <div className="result-header">
+              <h3>Exam Details</h3>
+              <div className="result-date">{formatDate(selectedResult.date)}</div>
+            </div>
+
+            <div className="result-stats">
+              <div className="stat-card">
+                <div className="stat-icon">📊</div>
+                <div className="stat-content">
+                  <div className="stat-label">Score</div>
+                  <div 
+                    className="stat-value"
+                    style={{ color: getScoreColor(getScorePercentage(selectedResult.score, selectedResult.totalQuestions)) }}
+                  >
+                    {getScorePercentage(selectedResult.score, selectedResult.totalQuestions)}%
+                  </div>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon">✅</div>
+                <div className="stat-content">
+                  <div className="stat-label">Correct</div>
+                  <div className="stat-value">{selectedResult.score}/{selectedResult.totalQuestions}</div>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon">⏱️</div>
+                <div className="stat-content">
+                  <div className="stat-label">Time Spent</div>
+                  <div className="stat-value">{formatTime(selectedResult.timeSpent)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="answers-review">
+              <h4>Answer Review</h4>
+              {selectedResult.answers.map((answer) => {
+                const question = sampleQuestions.find((q) => q.id === answer.questionId);
+                if (!question) return null;
+
+                return (
+                  <div key={answer.questionId} className={`answer-card ${answer.correct ? 'correct' : 'incorrect'}`}>
+                    <div className="answer-header">
+                      <span className="answer-status">
+                        {answer.correct ? '✅ Correct' : '❌ Incorrect'}
+                      </span>
+                      <span className="answer-category">{question.category}</span>
+                    </div>
+
+                    <div className="answer-question">{question.question}</div>
+
+                    <div className="answer-options">
+                      {question.options.map((option, index) => {
+                        const isUserAnswer = index === answer.userAnswer;
+                        const isCorrectAnswer = index === question.correctAnswer;
+                        
+                        let className = 'answer-option';
+                        if (isCorrectAnswer) className += ' correct-answer';
+                        if (isUserAnswer && !answer.correct) className += ' user-wrong-answer';
+
+                        return (
+                          <div key={index} className={className}>
+                            <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+                            <span>{option}</span>
+                            {isUserAnswer && <span className="label">Your answer</span>}
+                            {isCorrectAnswer && <span className="label">Correct answer</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {question.explanation && (
+                      <div className="answer-explanation">
+                        <strong>Explanation:</strong> {question.explanation}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
