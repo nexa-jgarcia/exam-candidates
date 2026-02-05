@@ -19,7 +19,7 @@ export function Exam() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: number }>({});
   const [examStarted, setExamStarted] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(1800); // 30 minutes
+  const [timeRemaining, setTimeRemaining] = useState(900); // 15 minutes
   const [examResults, setExamResults] = useLocalStorage<ExamResult[]>('examResults', []);
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export function Exam() {
     setExamStarted(true);
     setUserAnswers({});
     setCurrentQuestionIndex(0);
-    setTimeRemaining(1800);
+    setTimeRemaining(900); // Reset to 15 minutes
   };
 
   const handleAnswerSelect = (answerId: number) => {
@@ -72,7 +72,7 @@ export function Exam() {
     }));
 
     const score = answers.filter((a) => a.correct).length;
-    const timeSpent = 1800 - timeRemaining;
+    const timeSpent = 900 - timeRemaining;
 
     const result: ExamResult = {
       date: new Date().toISOString(),
@@ -99,7 +99,7 @@ export function Exam() {
           <h2>Ready to Start Your Exam?</h2>
           <div className="exam-info">
             <p><strong>Total Questions:</strong> {questions.length}</p>
-            <p><strong>Time Limit:</strong> 30 minutes</p>
+            <p><strong>Time Limit:</strong> 15 minutes</p>
             <p><strong>Passing Score:</strong> 70%</p>
           </div>
           <button onClick={startExam} className="start-button">
