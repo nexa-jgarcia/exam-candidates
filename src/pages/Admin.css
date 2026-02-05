@@ -215,6 +215,7 @@
 }
 
 .option-preview {
+  color: #2d3748;
   display: flex;
   align-items: center;
   gap: 0.75rem;
