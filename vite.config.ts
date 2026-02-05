@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/nexa-jgarcia.github.io/exam-candidates/',
+  base: '/exam-candidates/',
   plugins: [react()],
   server: {
     port: 5173,
