@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { sampleQuestions, type Question } from '../data/sampleQuestions';
-import { useFirestoreResults, type ExamResult } from '../hooks/useFirestoreResults';
+import { useFirestoreResults } from '../hooks/useFirestoreResults';
 import { useFirestoreQuestions } from '../hooks/useFirestoreQuestions';
 import './Results.css';
 import React from 'react';
