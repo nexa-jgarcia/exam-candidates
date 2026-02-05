@@ -2,25 +2,25 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type Question, sampleQuestions } from '../data/sampleQuestions';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useFirestoreQuestions } from '../hooks/useFirestoreQuestions';
+import { useFirestoreResults, type ExamResult } from '../hooks/useFirestoreResults';
 import './Exam.css';
-
-interface ExamResult {
-  date: string;
-  score: number;
-  totalQuestions: number;
-  answers: { questionId: number; userAnswer: number; correct: boolean }[];
-  timeSpent: number;
-}
 
 export function Exam() {
   const navigate = useNavigate();
-  const [questions] = useState<Question[]>(sampleQuestions);
+  const { questions: firestoreQuestions, loading } = useFirestoreQuestions();
+  const { addResult } = useFirestoreResults();
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: number }>({});
   const [examStarted, setExamStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(900); // 15 minutes
-  const [examResults, setExamResults] = useLocalStorage<ExamResult[]>('examResults', []);
+  const [candidateName, setCandidateName] = useState('');
+
+  // Merge sample questions with Firestore questions
+  useEffect(() => {
+    setQuestions([...sampleQuestions, ...firestoreQuestions]);
+  }, [firestoreQuestions]);
 
   useEffect(() => {
     if (!examStarted) return;
@@ -39,6 +39,10 @@ export function Exam() {
   }, [examStarted]);
 
   const startExam = () => {
+    if (!candidateName.trim()) {
+      alert('Please enter your name before starting the exam.');
+      return;
+    }
     setExamStarted(true);
     setUserAnswers({});
     setCurrentQuestionIndex(0);
@@ -64,7 +68,7 @@ export function Exam() {
     }
   };
 
-  const submitExam = () => {
+  const submitExam = async () => {
     const answers = questions.map((q) => ({
       questionId: q.id,
       userAnswer: userAnswers[q.id] ?? -1,
@@ -75,6 +79,7 @@ export function Exam() {
     const timeSpent = 900 - timeRemaining;
 
     const result: ExamResult = {
+      candidateName: candidateName.trim(),
       date: new Date().toISOString(),
       score,
       totalQuestions: questions.length,
@@ -82,8 +87,13 @@ export function Exam() {
       timeSpent,
     };
 
-    setExamResults([...examResults, result]);
-    navigate('/results');
+    try {
+      await addResult(result);
+      navigate('/exam-candidates/results');
+    } catch (err) {
+      console.error('Error submitting exam:', err);
+      alert('Error saving exam results. Please try again.');
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -91,6 +101,16 @@ export function Exam() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (loading) {
+    return (
+      <div className="exam-container">
+        <div className="exam-start">
+          <h2>Loading exam questions...</h2>
+        </div>
+      </div>
+    );
+  }
 
   if (!examStarted) {
     return (
@@ -101,6 +121,25 @@ export function Exam() {
             <p><strong>Total Questions:</strong> {questions.length}</p>
             <p><strong>Time Limit:</strong> 15 minutes</p>
             <p><strong>Passing Score:</strong> 70%</p>
+          </div>
+          <div className="name-input-section">
+            <label htmlFor="candidateName">
+              <strong>Enter Your Name:</strong>
+            </label>
+            <input
+              id="candidateName"
+              type="text"
+              value={candidateName}
+              onChange={(e) => setCandidateName(e.target.value)}
+              placeholder="e.g., John Smith"
+              className="name-input"
+              autoFocus
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  startExam();
+                }
+              }}
+            />
           </div>
           <button onClick={startExam} className="start-button">
             Start Exam

@@ -1,13 +1,14 @@
 import React from 'react';
 import { useState } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useFirestoreQuestions } from '../hooks/useFirestoreQuestions';
 import type { Question } from '../data/sampleQuestions';
 import './Admin.css';
 
 export function Admin() {
-  const [questions, setQuestions] = useLocalStorage<Question[]>('customQuestions', []);
+  const { questions, loading, error, addQuestion, updateQuestion, deleteQuestion } = useFirestoreQuestions();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingFirestoreId, setEditingFirestoreId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     category: '',
@@ -32,10 +33,11 @@ export function Admin() {
       explanation: '',
     });
     setEditingId(null);
+    setEditingFirestoreId(null);
     setShowForm(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const newQuestion: Question = {
@@ -47,16 +49,19 @@ export function Admin() {
       explanation: formData.explanation,
     };
 
-    if (editingId) {
-      setQuestions(questions.map((q) => (q.id === editingId ? newQuestion : q)));
-    } else {
-      setQuestions([...questions, newQuestion]);
+    try {
+      if (editingId && editingFirestoreId) {
+        await updateQuestion(editingFirestoreId, newQuestion);
+      } else {
+        await addQuestion(newQuestion);
+      }
+      resetForm();
+    } catch (err) {
+      alert('Error saving question. Please try again.');
     }
-
-    resetForm();
   };
 
-  const handleEdit = (question: Question) => {
+  const handleEdit = (question: Question & { firestoreId?: string }) => {
     setFormData({
       category: question.category,
       question: question.question,
@@ -68,14 +73,32 @@ export function Admin() {
       explanation: question.explanation || '',
     });
     setEditingId(question.id);
+    setEditingFirestoreId(question.firestoreId || null);
     setShowForm(true);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (firestoreId: string) => {
     if (confirm('Are you sure you want to delete this question?')) {
-      setQuestions(questions.filter((q) => q.id !== id));
+      try {
+        await deleteQuestion(firestoreId);
+      } catch (err) {
+        alert('Error deleting question. Please try again.');
+      }
     }
   };
+
+  if (loading) {
+    return <div className="admin-container"><p>Loading questions...</p></div>;
+  }
+
+  if (error) {
+    return (
+      <div className="admin-container">
+        <p style={{ color: 'red' }}>Error: {error}</p>
+        <p>Please check your Firebase configuration.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-container">
@@ -200,15 +223,15 @@ export function Admin() {
           </div>
         ) : (
           <div className="questions-grid">
-            {questions.map((question) => (
-              <div key={question.id} className="question-item">
+            {questions.map((question: Question & { firestoreId?: string }) => (
+              <div key={question.firestoreId || question.id} className="question-item">
                 <div className="question-item-header">
                   <span className="question-category">{question.category}</span>
                   <div className="question-actions">
                     <button className="edit-btn" onClick={() => handleEdit(question)}>
                       ✏️ Edit
                     </button>
-                    <button className="delete-btn" onClick={() => handleDelete(question.id)}>
+                    <button className="delete-btn" onClick={() => handleDelete(question.firestoreId!)}>
                       🗑️ Delete
                     </button>
                   </div>

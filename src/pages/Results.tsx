@@ -1,22 +1,37 @@
-import { useState } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
-import { sampleQuestions } from '../data/sampleQuestions';
+import { useState, useEffect } from 'react';
+import { sampleQuestions, type Question } from '../data/sampleQuestions';
+import { useFirestoreResults, type ExamResult } from '../hooks/useFirestoreResults';
+import { useFirestoreQuestions } from '../hooks/useFirestoreQuestions';
 import './Results.css';
 import React from 'react';
 
-interface ExamResult {
-  date: string;
-  score: number;
-  totalQuestions: number;
-  answers: { questionId: number; userAnswer: number; correct: boolean }[];
-  timeSpent: number;
-}
-
 export function Results() {
-  const [examResults] = useLocalStorage<ExamResult[]>('examResults', []);
-  const [selectedResultIndex, setSelectedResultIndex] = useState<number | null>(
-    examResults.length > 0 ? examResults.length - 1 : null
-  );
+  const { results: examResults, loading } = useFirestoreResults();
+  const { questions: firestoreQuestions } = useFirestoreQuestions();
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [selectedResultIndex, setSelectedResultIndex] = useState<number | null>(null);
+
+  // Merge sample questions with Firestore questions
+  useEffect(() => {
+    setAllQuestions([...sampleQuestions, ...firestoreQuestions]);
+  }, [firestoreQuestions]);
+
+  // Set initial selected result when data loads
+  useEffect(() => {
+    if (examResults.length > 0 && selectedResultIndex === null) {
+      setSelectedResultIndex(0);
+    }
+  }, [examResults]);
+
+  if (loading) {
+    return (
+      <div className="results-container">
+        <div className="no-results">
+          <h2>Loading results...</h2>
+        </div>
+      </div>
+    );
+  }
 
   if (examResults.length === 0) {
     return (
@@ -68,6 +83,7 @@ export function Results() {
                   className={`result-item ${selectedResultIndex === index ? 'active' : ''}`}
                   onClick={() => setSelectedResultIndex(index)}
                 >
+                  <div className="result-item-name">{result.candidateName || 'Anonymous'}</div>
                   <div className="result-item-date">{formatDate(result.date)}</div>
                   <div className="result-item-score" style={{ color: getScoreColor(percentage) }}>
                     {percentage}% ({result.score}/{result.totalQuestions})
@@ -81,7 +97,7 @@ export function Results() {
         {selectedResult && (
           <div className="results-detail">
             <div className="result-header">
-              <h3>Exam Details</h3>
+              <h3>Exam Details - {selectedResult.candidateName || 'Anonymous'}</h3>
               <div className="result-date">{formatDate(selectedResult.date)}</div>
             </div>
 
@@ -119,7 +135,7 @@ export function Results() {
             <div className="answers-review">
               <h4>Answer Review</h4>
               {selectedResult.answers.map((answer) => {
-                const question = sampleQuestions.find((q) => q.id === answer.questionId);
+                const question = allQuestions.find((q) => q.id === answer.questionId);
                 if (!question) return null;
 
                 return (

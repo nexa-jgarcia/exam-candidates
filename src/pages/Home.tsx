@@ -36,8 +36,8 @@ export function Home() {
         </div>
 
         <div className="cta-section">
-          <Link to="/exam" className="cta-button">Start Practice Exam</Link>
-          <Link to="/admin" className="cta-button secondary">Manage Questions</Link>
+          <Link to="/exam-candidates/exam" className="cta-button">Start Practice Exam</Link>
+          <Link to="/exam-candidates/admin" className="cta-button secondary">Manage Questions</Link>
         </div>
       </div>
     </div>
