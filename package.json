@@ -3,17 +3,17 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://nexa-jgarcia.github.io",
+  "homepage": "https://nexa-jgarcia.github.io/exam-candidates",
   "scripts": {
     "dev": "vite",
-    "build-vite": "tsc && vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build-react": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "@types/react": "^19.2.10",
