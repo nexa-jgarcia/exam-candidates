@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 // Firebase configuration using environment variables
 // These values are loaded from the .env file
@@ -39,4 +40,7 @@ if (missingEnvVars.length > 0) {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore
+
+// Initialize Firebase Authentication
+export const auth = getAuth(app);
 export const db = getFirestore(app);
