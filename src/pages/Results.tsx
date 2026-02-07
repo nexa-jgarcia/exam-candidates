@@ -1,20 +1,13 @@
 import { useState, useEffect } from 'react';
-import { sampleQuestions, type Question } from '../data/sampleQuestions';
 import { useFirestoreResults } from '../hooks/useFirestoreResults';
-import { useFirestoreQuestions } from '../hooks/useFirestoreQuestions';
+import { useFirestoreExams } from '../hooks/useFirestoreExams';
 import './Results.css';
 import React from 'react';
 
 export function Results() {
   const { results: examResults, loading } = useFirestoreResults();
-  const { questions: firestoreQuestions } = useFirestoreQuestions();
-  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const { exams } = useFirestoreExams();
   const [selectedResultIndex, setSelectedResultIndex] = useState<number | null>(null);
-
-  // Merge sample questions with Firestore questions
-  useEffect(() => {
-    setAllQuestions([...sampleQuestions, ...firestoreQuestions]);
-  }, [firestoreQuestions]);
 
   // Set initial selected result when data loads
   useEffect(() => {
@@ -84,6 +77,7 @@ export function Results() {
                   onClick={() => setSelectedResultIndex(index)}
                 >
                   <div className="result-item-name">{result.candidateName || 'Anonymous'}</div>
+                  <div className="result-item-exam">{result.examName}</div>
                   <div className="result-item-date">{formatDate(result.date)}</div>
                   <div className="result-item-score" style={{ color: getScoreColor(percentage) }}>
                     {percentage}% ({result.score}/{result.totalQuestions})
@@ -97,8 +91,11 @@ export function Results() {
         {selectedResult && (
           <div className="results-detail">
             <div className="result-header">
-              <h3>Exam Details - {selectedResult.candidateName || 'Anonymous'}</h3>
-              <div className="result-date">{formatDate(selectedResult.date)}</div>
+              <h3>{selectedResult.examName}</h3>
+              <div className="result-subheader">
+                <span>{selectedResult.candidateName || 'Anonymous'}</span>
+                <span className="result-date">{formatDate(selectedResult.date)}</span>
+              </div>
             </div>
 
             <div className="result-stats">
@@ -135,8 +132,17 @@ export function Results() {
             <div className="answers-review">
               <h4>Answer Review</h4>
               {selectedResult.answers.map((answer) => {
-                const question = allQuestions.find((q) => q.id === answer.questionId);
-                if (!question) return null;
+                // Find the exam that contains this result
+                const exam = exams.find(e => e.id === selectedResult.examId);
+                const question = exam?.questions.find((q) => q.id === answer.questionId);
+                
+                if (!question) {
+                  return (
+                    <div key={answer.questionId} className="answer-card">
+                      <p>Question not found (ID: {answer.questionId})</p>
+                    </div>
+                  );
+                }
 
                 return (
                   <div key={answer.questionId} className={`answer-card ${answer.correct ? 'correct' : 'incorrect'}`}>
@@ -144,7 +150,9 @@ export function Results() {
                       <span className="answer-status">
                         {answer.correct ? '✅ Correct' : '❌ Incorrect'}
                       </span>
-                      <span className="answer-category">{question.category}</span>
+                      {question.category && (
+                        <span className="answer-category">{question.category}</span>
+                      )}
                     </div>
 
                     <div className="answer-question">{question.question}</div>

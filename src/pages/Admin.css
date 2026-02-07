@@ -273,3 +273,49 @@
 .question-item-explanation strong {
   color: #2d3748;
 }
+
+/* Exam-specific styles */
+.view-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.3s;
+  background: #805ad5;
+  color: white;
+}
+
+.view-btn:hover {
+  background: #6b46c1;
+}
+
+.exam-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: #4a5568;
+}
+
+.exam-stats span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.exam-details {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 2rem;
+}
+
+.exam-details .admin-header {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e2e8f0;
+}

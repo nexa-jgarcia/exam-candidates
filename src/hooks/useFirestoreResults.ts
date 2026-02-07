@@ -9,11 +9,14 @@ import {
 import { db } from '../firebase/config';
 
 export interface ExamResult {
+  id?: string;
   candidateName: string;
+  examId: string;
+  examName: string;
   date: string;
   score: number;
   totalQuestions: number;
-  answers: { questionId: number; userAnswer: number; correct: boolean }[];
+  answers: { questionId: string; userAnswer: number; correct: boolean }[];
   timeSpent: number;
 }
 
@@ -29,8 +32,8 @@ export function useFirestoreResults() {
       q,
       (snapshot) => {
         const resultsData: ExamResult[] = [];
-        snapshot.forEach((doc) => {
-          resultsData.push(doc.data() as ExamResult);
+        snapshot.forEach((docSnap) => {
+          resultsData.push({ ...docSnap.data(), id: docSnap.id } as ExamResult);
         });
         setResults(resultsData);
         setLoading(false);
@@ -45,9 +48,10 @@ export function useFirestoreResults() {
     return () => unsubscribe();
   }, []);
 
-  const addResult = async (result: ExamResult) => {
+  const addResult = async (result: Omit<ExamResult, 'id'>): Promise<string> => {
     try {
-      await addDoc(collection(db, 'examResults'), result);
+      const docRef = await addDoc(collection(db, 'examResults'), result);
+      return docRef.id;
     } catch (err: any) {
       console.error('Error adding exam result:', err);
       setError(err.message);
@@ -55,10 +59,15 @@ export function useFirestoreResults() {
     }
   };
 
+  const getResultById = (resultId: string): ExamResult | undefined => {
+    return results.find(result => result.id === resultId);
+  };
+
   return {
     results,
     loading,
     error,
     addResult,
+    getResultById,
   };
 }

@@ -17,6 +17,13 @@
   margin-bottom: 2rem;
 }
 
+.exam-description {
+  color: #4a5568;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
 .exam-info {
   background: #f7fafc;
   padding: 1.5rem;

@@ -1,29 +1,44 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { type Question, sampleQuestions } from '../data/sampleQuestions';
-import { useFirestoreQuestions } from '../hooks/useFirestoreQuestions';
-import { useFirestoreResults, type ExamResult } from '../hooks/useFirestoreResults';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useFirestoreExams } from '../hooks/useFirestoreExams';
+import { useFirestoreResults, type ExamResult as ExamResultType } from '../hooks/useFirestoreResults';
+import type { Exam } from '../types/exam';
 import './Exam.css';
 
 export function Exam() {
   const navigate = useNavigate();
-  const { questions: firestoreQuestions, loading } = useFirestoreQuestions();
+  const { examId } = useParams<{ examId: string }>();
+  const { getExamById, loading: examsLoading } = useFirestoreExams();
   const { addResult } = useFirestoreResults();
-  const [questions, setQuestions] = useState<Question[]>([]);
+  
+  const [exam, setExam] = useState<Exam | undefined>(undefined);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<{ [key: number]: number }>({});
+  const [userAnswers, setUserAnswers] = useState<{ [key: string]: number }>({});
   const [examStarted, setExamStarted] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(900); // 15 minutes
+  const [timeRemaining, setTimeRemaining] = useState(0);
   const [candidateName, setCandidateName] = useState('');
 
-  // Merge sample questions with Firestore questions
+  // Load exam data
   useEffect(() => {
-    setQuestions([...sampleQuestions, ...firestoreQuestions]);
-  }, [firestoreQuestions]);
+    console.log('loading');
+    
+    if (!examId || examsLoading) return;
+    
+    const examData = getExamById(examId);
+    if (examData) {
+      setExam(examData);
+      console.log(examData.timeLimit);
+      
+      setTimeRemaining(examData.timeLimit);
+    } else {
+      alert('Exam not found');
+      navigate('/exam-candidates/');
+    }
+  }, [examsLoading]);
 
   useEffect(() => {
-    if (!examStarted) return;
+    if (!examStarted || !exam) return;
 
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
@@ -36,30 +51,34 @@ export function Exam() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [examStarted]);
+  }, [examStarted, exam]);
 
   const startExam = () => {
     if (!candidateName.trim()) {
       alert('Please enter your name before starting the exam.');
       return;
     }
+    if (!exam || exam.questions.length === 0) {
+      alert('This exam has no questions yet.');
+      return;
+    }
     setExamStarted(true);
     setUserAnswers({});
     setCurrentQuestionIndex(0);
-    setTimeRemaining(900); // Reset to 15 minutes
+    setTimeRemaining(exam.timeLimit);
   };
 
   const handleAnswerSelect = (answerId: number) => {
+    if (!exam) return;
     setUserAnswers({
       ...userAnswers,
-      [questions[currentQuestionIndex].id]: answerId,
+      [exam.questions[currentQuestionIndex].id]: answerId,
     });
   };
 
   const nextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    }
+    if (!exam || currentQuestionIndex >= exam.questions.length - 1) return;
+    setCurrentQuestionIndex(currentQuestionIndex + 1);
   };
 
   const previousQuestion = () => {
@@ -69,27 +88,31 @@ export function Exam() {
   };
 
   const submitExam = async () => {
-    const answers = questions.map((q) => ({
+    if (!exam) return;
+
+    const answers = exam.questions.map((q) => ({
       questionId: q.id,
       userAnswer: userAnswers[q.id] ?? -1,
       correct: userAnswers[q.id] === q.correctAnswer,
     }));
 
     const score = answers.filter((a) => a.correct).length;
-    const timeSpent = 900 - timeRemaining;
+    const timeSpent = exam.timeLimit - timeRemaining;
 
-    const result: ExamResult = {
+    const result: Omit<ExamResultType, 'id'> = {
       candidateName: candidateName.trim(),
+      examId: exam.id!,
+      examName: exam.name,
       date: new Date().toISOString(),
       score,
-      totalQuestions: questions.length,
+      totalQuestions: exam.questions.length,
       answers,
       timeSpent,
     };
 
     try {
-      await addResult(result);
-      navigate('/exam-candidates/results');
+      const resultId = await addResult(result);
+      navigate(`/exam-candidates/result/${resultId}`);
     } catch (err) {
       console.error('Error submitting exam:', err);
       alert('Error saving exam results. Please try again.');
@@ -102,11 +125,25 @@ export function Exam() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (loading) {
+  if (examsLoading || !exam) {
     return (
       <div className="exam-container">
         <div className="exam-start">
-          <h2>Loading exam questions...</h2>
+          <h2>Loading exam...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (exam.questions.length === 0) {
+    return (
+      <div className="exam-container">
+        <div className="exam-start">
+          <h2>{exam.name}</h2>
+          <p style={{ color: '#e53e3e', marginTop: '1rem' }}>This exam has no questions yet.</p>
+          <button onClick={() => navigate('/exam-candidates/')} className="start-button">
+            Back to Home
+          </button>
         </div>
       </div>
     );
@@ -116,11 +153,12 @@ export function Exam() {
     return (
       <div className="exam-container">
         <div className="exam-start">
-          <h2>Ready to Start Your Exam?</h2>
+          <h2>{exam.name}</h2>
+          <p className="exam-description">{exam.description}</p>
           <div className="exam-info">
-            <p><strong>Total Questions:</strong> {questions.length}</p>
-            <p><strong>Time Limit:</strong> 15 minutes</p>
-            <p><strong>Passing Score:</strong> 70%</p>
+            <p><strong>Total Questions:</strong> {exam.questions.length}</p>
+            <p><strong>Time Limit:</strong> {Math.floor(exam.timeLimit / 60)} minutes</p>
+            <p><strong>Passing Score:</strong> {exam.passingScore}%</p>
           </div>
           <div className="name-input-section">
             <label htmlFor="candidateName">
@@ -149,16 +187,16 @@ export function Exam() {
     );
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const currentQuestion = exam.questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / exam.questions.length) * 100;
   const answeredCount = Object.keys(userAnswers).length;
 
   return (
     <div className="exam-container">
       <div className="exam-header">
         <div className="exam-progress">
-          <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
-          <span>Answered: {answeredCount}/{questions.length}</span>
+          <span>Question {currentQuestionIndex + 1} of {exam.questions.length}</span>
+          <span>Answered: {answeredCount}/{exam.questions.length}</span>
         </div>
         <div className="timer">
           ⏱️ Time Remaining: {formatTime(timeRemaining)}
@@ -170,7 +208,9 @@ export function Exam() {
       </div>
 
       <div className="question-card">
-        <div className="question-category">{currentQuestion.category}</div>
+        {currentQuestion.category && (
+          <div className="question-category">{currentQuestion.category}</div>
+        )}
         <h3 className="question-text">{currentQuestion.question}</h3>
         
         <div className="options">
@@ -197,17 +237,19 @@ export function Exam() {
         </button>
         
         <div className="question-dots">
-          {questions.map((_, index) => (
+          {exam.questions.map((q, index) => (
             <button
-              key={index}
-              className={`dot ${index === currentQuestionIndex ? 'active' : ''} ${userAnswers[questions[index].id] !== undefined ? 'answered' : ''}`}
+              key={q.id}
+              className={`dot ${index === currentQuestionIndex ? 'active' : ''} ${userAnswers[q.id] !== undefined ? 'answered' : ''}`}
               onClick={() => setCurrentQuestionIndex(index)}
               title={`Question ${index + 1}`}
             />
           ))}
         </div>
 
-        {currentQuestionIndex === questions.length - 1 ? (
+        {timeRemaining}
+
+        {currentQuestionIndex === exam.questions.length - 1 ? (
           <button onClick={submitExam} className="nav-button submit">
             Submit Exam
           </button>
