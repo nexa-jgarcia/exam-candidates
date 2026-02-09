@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import './Login.css';
 
 export function Login() {
-  const [isLogin, _setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,6 +16,13 @@ export function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    // Validate email domain
+    if (!email.endsWith('@nexaminds.ai')) {
+      setError('Only @nexaminds.ai email addresses are allowed');
+      setLoading(false);
+      return;
+    }
 
     try {
       if (isLogin) {
@@ -56,9 +63,11 @@ export function Login() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
+              placeholder="admin@nexaminds.ai"
               required
               autoFocus
+              pattern=".*@nexaminds\.ai$"
+              title="Email must be from @nexaminds.ai domain"
             />
           </div>
 
@@ -79,7 +88,7 @@ export function Login() {
           </button>
         </form>
 
-        {/* <div className="toggle-form">
+        <div className="toggle-form">
           {isLogin ? "Don't have an account? " : 'Already have an account? '}
           <button
             type="button"
@@ -91,7 +100,7 @@ export function Login() {
           >
             {isLogin ? 'Sign Up' : 'Login'}
           </button>
-        </div> */}
+        </div>
       </div>
     </div>
   );
